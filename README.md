@@ -42,7 +42,3 @@ set(CMAKE_C_STANDARD 11)
 最后就可以在终端中运行该文件，这里的代码是在输出C++版本号
 
 ![alt text](image/image.png)
-
-
-### 链接至github
-
