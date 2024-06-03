@@ -18,12 +18,12 @@ struct Synapse {
 struct Area {
   Area(uint32_t index, uint32_t n, uint32_t k) : index(index), n(n), k(k) {}
 
-  const uint32_t index;
-  const uint32_t n;
-  const uint32_t k;
-  uint32_t support = 0;
-  bool is_fixed = false;
-  std::vector<uint32_t> activated;
+  const uint32_t index; // 区域的标识符
+  const uint32_t n; // 区域中神经元的数量
+  const uint32_t k; // 区域中激活神经元的数量
+  uint32_t support = 0; // 支持数量
+  bool is_fixed = false; // 标识该区域是否是组件
+  std::vector<uint32_t> activated; // 激活的神经元列表
 };
 
 struct Fiber {
@@ -86,20 +86,27 @@ class Brain {
                         const std::vector<uint32_t>& new_activated);
 
  protected:
-  std::mt19937 rng_;
-  int log_level_ = 0;
+  std::mt19937 rng_; // 随机数生成器
+  int log_level_ = 0; // 日志等级
 
-  const float p_;
-  const float beta_;
-  const float learn_rate_;
-  const float max_weight_;
-  std::vector<Area> areas_;
-  std::vector<Fiber> fibers_;
-  std::vector<std::vector<uint32_t>> incoming_fibers_;
-  std::vector<std::vector<uint32_t>> outgoing_fibers_;
-  std::map<std::string, uint32_t> area_by_name_;
-  std::vector<std::string> area_name_;
-  uint32_t step_ = 0;
+  const float p_; // 某种参数（可能与概率或权重相关）
+  const float beta_; // 某种参数（可能与学习率或调整系数相关）
+  const float learn_rate_; // 学习率
+  const float max_weight_; // 最大权重
+  std::vector<Area> areas_; // 区域列表
+  std::vector<Fiber> fibers_; // 纤维列表
+  std::vector<std::vector<uint32_t>> incoming_fibers_; // 入纤维列表
+  std::vector<std::vector<uint32_t>> outgoing_fibers_; // 出纤维列表
+  std::map<std::string, uint32_t> area_by_name_; // 区域名称到标识符的映射
+  std::vector<std::string> area_name_; // 区域名称列表
+  uint32_t step_ = 0; // 当前步数
+/*
+  Brain::Brain(float p, float beta, float max_weight, uint32_t seed)
+      : rng_(seed), p_(p), beta_(beta), learn_rate_(1.0f + beta_),
+        max_weight_(max_weight), areas_(1, Area(0, 0, 0)),
+        fibers_(1, Fiber(0, 0)), incoming_fibers_(1), outgoing_fibers_(1),
+        area_name_(1, "INVALID") {}
+*/
 };
 
 }  // namespace nemo

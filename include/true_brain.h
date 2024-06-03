@@ -1,4 +1,6 @@
-#include <brain.h>
+// Brain类实现了一个神经网络，用于模拟大脑的活动和学习过程。
+
+#include "brain.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,6 +19,7 @@
 namespace nemo {
 namespace {
 
+// 计算二项分布的分位数
 float BinomQuantile(uint32_t k, float p, float percent) {
   double pi = std::pow(1.0 - p, k);
   double mul = (1.0 * p) / (1.0 - p);
@@ -30,6 +33,7 @@ float BinomQuantile(uint32_t k, float p, float percent) {
   return i;
 }
 
+// 生成截断正态分布
 template<typename Trng>
 float TruncatedNorm(float a, Trng& rng) {
   if (a <= 0.0f) {
@@ -39,8 +43,7 @@ float TruncatedNorm(float a, Trng& rng) {
       if (x >= a) return x;
     }
   } else {
-    // Exponential accept-reject algorithm from Robert,
-    // https://arxiv.org/pdf/0907.4010.pdf
+    // 从Robert的指数接受-拒绝算法中生成
     const float alpha = (a + std::sqrt(a * a + 4)) * 0.5f;
     std::exponential_distribution<float> d(alpha);
     std::uniform_real_distribution<float> u(0.0f, 1.0f);
@@ -53,11 +56,11 @@ float TruncatedNorm(float a, Trng& rng) {
   }
 }
 
+// 生成突触连接
 template<typename Trng>
 std::vector<Synapse> GenerateSynapses(uint32_t support, float p, Trng& rng) {
   std::vector<Synapse> synapses;
-  // Sample from geometric(p) distribution by sampling from
-  // floor(log(U[0, 1])/log(1-p)).
+  // 通过从floor(log(U[0, 1])/log(1-p))中采样，从几何(p)分布中采样
   std::uniform_real_distribution<float> u(0.0, 1.0);
   const float scale = 1.0f / std::log(1 - p);
   uint32_t last = std::floor(std::log(u(rng)) * scale);
@@ -69,6 +72,7 @@ std::vector<Synapse> GenerateSynapses(uint32_t support, float p, Trng& rng) {
   return synapses;
 }
 
+// 选择前k个激活值最高的神经元
 void SelectTopK(std::vector<Synapse>& activations, uint32_t k) {
   std::nth_element(activations.begin(), activations.begin() + k - 1,
                    activations.end(),
@@ -81,12 +85,14 @@ void SelectTopK(std::vector<Synapse>& activations, uint32_t k) {
 
 }  // namespace
 
+// Brain构造函数
 Brain::Brain(float p, float beta, float max_weight, uint32_t seed)
     : rng_(seed), p_(p), beta_(beta), learn_rate_(1.0f + beta_),
       max_weight_(max_weight), areas_(1, Area(0, 0, 0)),
       fibers_(1, Fiber(0, 0)), incoming_fibers_(1), outgoing_fibers_(1),
       area_name_(1, "INVALID") {}
 
+// 添加一个区域
 Area& Brain::AddArea(const std::string& name, uint32_t n, uint32_t k,
                      bool recurrent, bool is_explicit) {
   uint32_t area_i = areas_.size();
@@ -107,11 +113,13 @@ Area& Brain::AddArea(const std::string& name, uint32_t n, uint32_t k,
   return areas_.back();
 }
 
+// 添加一个刺激
 void Brain::AddStimulus(const std::string& name, uint32_t k) {
   AddArea(name, k, k, /*recurrent=*/false, /*is_explicit=*/true);
   ActivateArea(name, 0);
 }
 
+// 添加一个纤维
 void Brain::AddFiber(const std::string& from, const std::string& to,
                      bool bidirectional) {
   const Area& area_from = GetArea(from);
@@ -131,6 +139,7 @@ void Brain::AddFiber(const std::string& from, const std::string& to,
   }
 }
 
+// 获取一个区域
 Area& Brain::GetArea(const std::string& name) {
   std::map<std::string, uint32_t>::iterator it = area_by_name_.find(name);
   if (it != area_by_name_.end()) {
@@ -140,6 +149,7 @@ Area& Brain::GetArea(const std::string& name) {
   return areas_[0];
 }
 
+// 获取一个区域（常量版本）
 const Area& Brain::GetArea(const std::string& name) const {
   std::map<std::string, uint32_t>::const_iterator it = area_by_name_.find(name);
   if (it != area_by_name_.end()) {
@@ -149,6 +159,7 @@ const Area& Brain::GetArea(const std::string& name) const {
   return areas_[0];
 }
 
+// 获取一个纤维
 Fiber& Brain::GetFiber(const std::string& from, const std::string& to) {
   const Area& from_area = GetArea(from);
   const Area& to_area = GetArea(to);
@@ -162,6 +173,7 @@ Fiber& Brain::GetFiber(const std::string& from, const std::string& to) {
   return fibers_[0];
 }
 
+// 获取一个纤维（常量版本）
 const Fiber& Brain::GetFiber(const std::string& from,
                              const std::string& to) const{
   const Area& from_area = GetArea(from);
@@ -176,20 +188,24 @@ const Fiber& Brain::GetFiber(const std::string& from,
   return fibers_[0];
 }
 
+// 抑制所有纤维
 void Brain::InhibitAll() {
   for (Fiber& fiber : fibers_) {
     fiber.is_active = false;
   }
 }
 
+// 抑制一个纤维
 void Brain::InhibitFiber(const std::string& from, const std::string& to) {
   GetFiber(from, to).is_active = false;
 }
 
+// 激活一个纤维
 void Brain::ActivateFiber(const std::string& from, const std::string& to) {
   GetFiber(from, to).is_active = true;
 }
 
+// 激活一个区域
 void Brain::ActivateArea(const std::string& name, uint32_t assembly_index) {
   if (log_level_ > 0) {
     printf("Activating %s assembly %u\n", name.c_str(), assembly_index);
@@ -209,6 +225,7 @@ void Brain::ActivateArea(const std::string& name, uint32_t assembly_index) {
   area.is_fixed = true;
 }
 
+// 模拟一个时间步
 void Brain::SimulateOneStep(bool update_plasticity) {
   if (log_level_ > 0) {
     if (step_ == 0 && log_level_ > 2) {
@@ -297,6 +314,7 @@ void Brain::SimulateOneStep(bool update_plasticity) {
   }
 }
 
+// 初始化投影
 void Brain::InitProjection(const ProjectMap& graph) {
   InhibitAll();
   for (const auto& [from, edges] : graph) {
@@ -306,6 +324,7 @@ void Brain::InitProjection(const ProjectMap& graph) {
   }
 }
 
+// 投影
 void Brain::Project(const ProjectMap& graph, uint32_t num_steps,
                     bool update_plasticity) {
   InitProjection(graph);
@@ -314,6 +333,7 @@ void Brain::Project(const ProjectMap& graph, uint32_t num_steps,
   }
 }
 
+// 计算已知激活
 void Brain::ComputeKnownActivations(const Area& to_area,
                                     std::vector<Synapse>& activations) {
   activations.resize(to_area.support);
@@ -334,22 +354,20 @@ void Brain::ComputeKnownActivations(const Area& to_area,
   }
 }
 
+// 生成新的候选项
 void Brain::GenerateNewCandidates(const Area& to_area, uint32_t total_k,
                                   std::vector<Synapse>& activations) {
-  // Compute the total number of neurons firing into this area.
+  // 计算投射到该区域的神经元总数
   const uint32_t remaining_neurons = to_area.n - to_area.support;
   if (remaining_neurons <= 2 * to_area.k) {
-    // Generate number of synapses for all remaining neurons directly from the
-    // binomial(total_k, p_) distribution.
+    // 直接从二项式(total_k, p_)分布中生成所有剩余神经元的突触数
     std::binomial_distribution<> binom(total_k, p_);
     for (uint32_t i = 0; i < remaining_neurons; ++i) {
       activations.push_back({to_area.support + i, binom(rng_) * 1.0f});
     }
   } else {
-    // Generate top k number of synapses from the tail of the normal
-    // distribution that approximates the binomial(total_k, p_) distribution.
-    // TODO(szabadka): For the normal approximation to work, the mean should be
-    // at least 9. Find a better approximation if this does not hold.
+    // 从近似二项式(total_k, p_)分布的尾部生成前k个突触数
+    // TODO: 如果这不成立，则找到更好的近似
     const float percent =
         (remaining_neurons - to_area.k) * 1.0f / remaining_neurons;
     const float cutoff = BinomQuantile(total_k, p_, percent);
@@ -377,6 +395,7 @@ void Brain::GenerateNewCandidates(const Area& to_area, uint32_t total_k,
   }
 }
 
+// 连接新的神经元
 void Brain::ConnectNewNeuron(Area& area,
                              uint32_t num_synapses_from_activated,
                              uint32_t& total_synapses_from_non_activated) {
@@ -385,7 +404,7 @@ void Brain::ConnectNewNeuron(Area& area,
   ChooseOutgoingSynapses(area);
   ++area.support;
 }
-
+// 选择激活区域的突触
 void Brain::ChooseSynapsesFromActivated(const Area& area,
                                         uint32_t num_synapses) {
   const uint32_t neuron = area.support;
@@ -417,6 +436,7 @@ void Brain::ChooseSynapsesFromActivated(const Area& area,
   }
 }
 
+// 选择非激活区域的突触
 void Brain::ChooseSynapsesFromNonActivated(const Area& area,
                                            uint32_t& total_synapses) {
   const uint32_t neuron = area.support;
@@ -459,6 +479,7 @@ void Brain::ChooseSynapsesFromNonActivated(const Area& area,
   }
 }
 
+// 选择输出突触
 void Brain::ChooseOutgoingSynapses(const Area& area) {
   for (uint32_t fiber_i : outgoing_fibers_[area.index]) {
     Fiber& fiber = fibers_[fiber_i];
@@ -470,6 +491,7 @@ void Brain::ChooseOutgoingSynapses(const Area& area) {
   }
 }
 
+// 更新可塑性
 void Brain::UpdatePlasticity(Area& to_area,
                              const std::vector<uint32_t>& new_activated) {
   std::vector<uint8_t> is_new_activated(to_area.support);
@@ -491,7 +513,7 @@ void Brain::UpdatePlasticity(Area& to_area,
     }
   }
 }
-
+// 读取组装信息
 void Brain::ReadAssembly(const std::string& name,
                          size_t& index, size_t& overlap) {
   const Area& area = GetArea(name);
@@ -504,6 +526,7 @@ void Brain::ReadAssembly(const std::string& name,
   overlap = overlaps[index];
 }
 
+// 记录激活信息
 void Brain::LogActivated(const std::string& area_name) {
   const Area& area = GetArea(area_name);
   printf("[%s] activated: ", area_name.c_str());
@@ -511,6 +534,7 @@ void Brain::LogActivated(const std::string& area_name) {
   printf("\n");
 }
 
+// 记录图的统计信息
 void Brain::LogGraphStats() {
   printf("Graph Stats after %u update steps\n", step_);
   for (const auto& area : areas_) {
@@ -550,4 +574,4 @@ void Brain::LogGraphStats() {
   }
 }
 
-}  // namespace nemo
+}

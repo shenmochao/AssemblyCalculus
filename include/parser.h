@@ -96,10 +96,10 @@ struct RuleGroup {
 
 // 封装好的规则类
 struct RuleSet {
-    int index; // 索引
+    uint32_t index; // 索引 & uint32_t 就是无符号int
     std::map<std::string, RuleGroup> ruleGroups; // 只会有"PRE_RULES"和"POST_RULES"
     
-    RuleSet(int i, RuleGroup pre_rules, RuleGroup post_rules) {
+    RuleSet(uint32_t i, RuleGroup pre_rules, RuleGroup post_rules) {
         // emplace() 直接构造一个新的RuleGroup对象, 而不是调用默认构造函数
         index = i;
         ruleGroups.emplace("PRE_RULES", pre_rules);
@@ -109,7 +109,7 @@ struct RuleSet {
 
 
 // 创建通用名词的函数
-RuleSet generic_noun(int index) {
+RuleSet generic_noun(uint32_t index) {
     std::vector<AreaRule> preareaRules{
 
     };
@@ -136,7 +136,7 @@ RuleSet generic_noun(int index) {
 }
 
 // 创建通用及物动词的规则集
-RuleSet generic_trans_verb(int index) {
+RuleSet generic_trans_verb(uint32_t index) {
     std::vector<AreaRule> preareaRules{
         {"DISINHIBIT", ADVERB, 1}
     };
@@ -154,7 +154,7 @@ RuleSet generic_trans_verb(int index) {
 
 
 // 创建通用不及物动词的规则集
-RuleSet generic_intrans_verb(int index) {
+RuleSet generic_intrans_verb(uint32_t index) {
     std::vector<AreaRule> preareaRules{
         {"DISINHIBIT", ADVERB, 1}
     };
@@ -171,7 +171,7 @@ RuleSet generic_intrans_verb(int index) {
 }
 
 // 创建通用系动词的规则集
-RuleSet generic_copula(int index) {
+RuleSet generic_copula(uint32_t index) {
     std::vector<AreaRule> preareaRules{
 
     };
@@ -188,7 +188,7 @@ RuleSet generic_copula(int index) {
 }
 
 // 创建通用副词的规则集
-RuleSet generic_adverb(int index) {
+RuleSet generic_adverb(uint32_t index) {
     std::vector<AreaRule> preareaRules{
         {"DISINHIBIT", ADVERB, 0}, 
     };
@@ -205,7 +205,7 @@ RuleSet generic_adverb(int index) {
 }
 
 // 创建通用限定词的规则集
-RuleSet generic_determinant(int index) {
+RuleSet generic_determinant(uint32_t index) {
     std::vector<AreaRule> preareaRules{
         {"DISINHIBIT", DET, 0}
     };
@@ -222,7 +222,7 @@ RuleSet generic_determinant(int index) {
 }
 
 // 创建通用形容词的规则集
-RuleSet generic_adjective(int index) {
+RuleSet generic_adjective(uint32_t index) {
     std::vector<AreaRule> preareaRules{
         {"DISINHIBIT", ADJ, 0}
     };
@@ -239,7 +239,7 @@ RuleSet generic_adjective(int index) {
 }
 
 // 创建通用介词的规则集
-RuleSet generic_preposition(int index) {
+RuleSet generic_preposition(uint32_t index) {
     std::vector<AreaRule> preareaRules{
         {"DISINHIBIT", PREP, 0}
     };
@@ -258,39 +258,40 @@ RuleSet generic_preposition(int index) {
     return RuleSet(index, RuleGroup(preareaRules, prefiberRules), RuleGroup(postareaRules, postfiberRules));
 }
 
-std::vector<std::pair<std::string, RuleSet(*)(int)>> LEXEME_DICT = {
-    {"the", generic_determinant},
-    {"a", generic_determinant},
-    {"dogs", generic_noun},
-    {"cats", generic_noun},
-    {"mice", generic_noun},
-    {"people", generic_noun},
-    {"chase", generic_trans_verb},
-    {"love", generic_trans_verb},
-    {"bite", generic_trans_verb},
-    {"of", generic_preposition},
-    {"big", generic_adjective},
-    {"bad", generic_adjective},
-    {"run", generic_intrans_verb},
-    {"fly", generic_intrans_verb},
-    {"quickly", generic_adverb},
-    {"in", generic_preposition},
-    {"are", generic_copula},
-    {"man", generic_noun},
-    {"woman", generic_noun},
-    {"saw", generic_trans_verb}
+std::map<std::string, RuleSet> LEXEME_DICT = {
+    {"the", generic_determinant(0)},
+    {"a", generic_determinant(1)},
+    {"dogs", generic_noun(2)},
+    {"cats", generic_noun(3)},
+    {"mice", generic_noun(4)},
+    {"people", generic_noun(5)},
+    {"chase", generic_trans_verb(6)},
+    {"love", generic_trans_verb(7)},
+    {"bite", generic_trans_verb(8)},
+    {"of", generic_preposition(9)},
+    {"big", generic_adjective(10)},
+    {"bad", generic_adjective(11)},
+    {"run", generic_intrans_verb(12)},
+    {"fly", generic_intrans_verb(13)},
+    {"quickly", generic_adverb(14)},
+    {"in", generic_preposition(15)},
+    {"are", generic_copula(16)},
+    {"man", generic_noun(17)},
+    {"woman", generic_noun(18)},
+    {"saw", generic_trans_verb(19)}
 };
 
-std::vector<std::vector<const std::string>> ENGLISH_READOUT_RULES = {
-    {LEX, SUBJ, OBJ, PREP_P, ADVERB, ADJ},
-    {LEX, DET, ADJ, PREP_P},
-    {LEX, DET, ADJ, PREP_P},
-    {LEX, PREP, ADJ, DET},
-    {LEX},
-    {LEX},
-    {LEX},
-    {LEX},
-    {LEX}
+// 应用：readout_rules_.at(from_area).find(to_area) != readout_rules_.at(from_area).end()
+std::map<std::string, std::set<std::string>> ENGLISH_READOUT_RULES = {
+    {"VERB", {"LEX", "SUBJ", "OBJ", "PREP_P", "ADVERB", "ADJ"}},
+    {"SUBJ", {"LEX", "DET", "ADJ", "PREP_P"}},
+    {"OBJ", {"LEX", "DET", "ADJ", "PREP_P"}},
+    {"PREP_P", {"LEX", "PREP", "ADJ", "DET"}},
+    {"PREP", {"LEX"}},
+    {"ADJ", {"LEX"}},
+    {"DET", {"LEX"}},
+    {"ADVERB", {"LEX"}},
+    {"LEX", {}},
 };
 
 typedef std::map<std::string, std::vector<std::string>> ProjectMap;
@@ -298,17 +299,16 @@ typedef std::map<std::string, std::vector<std::string>> ProjectMap;
 class ParserBrain : public Brain
 {
 public:
-    std::map<std::string, uint32_t> lexeme_dict_;
-    std::vector<std::string> all_areas_;
-    std::vector<std::string> recurrent_areas_;
-    std::vector<std::string> initial_areas_;
-    std::map<std::string, std::set<std::string>> readout_rules_;
-    std::map<std::string, std::set<std::string>> activated_fibers_;
-    std::map<std::string, std::map<std::string, std::set<int>>> fiber_states_;
-    std::map<std::string, std::set<int>> area_states_;
-
+    std::map<std::string, RuleSet> lexeme_dict_; // 词素字典，存储每个词素对应的规则集
+    std::vector<std::string> all_areas_; // 所有区域的名称列表
+    std::vector<std::string> recurrent_areas_; // 循环区域的名称列表
+    std::vector<std::string> initial_areas_; // 初始区域的名称列表
+    std::map<std::string, std::set<std::string>> readout_rules_; // 读取规则
+    std::map<std::string, std::set<std::string>> activated_fibers_; // 激活的纤维，存储每个区域对应的激活纤维集合
+    std::map<std::string, std::map<std::string, std::set<int>>> fiber_states_; // 纤维状态，存储每个区域中的纤维状态
+    std::map<std::string, std::set<int>> area_states_; // 区域状态，存储每个区域的状态集合
     ParserBrain(float p, float beta, float max_weight, uint32_t seed,
-                std::map<std::string, uint32_t> lexeme_dict = {},
+                std::map<std::string, RuleSet> lexeme_dict = {},
                 std::vector<std::string> all_areas = {},
                 std::vector<std::string> recurrent_areas = {},
                 std::vector<std::string> initial_areas = {},
@@ -396,6 +396,7 @@ public:
     void rememberFibers(const ProjectMap &project_map)
     {
         // 遍历投射图中的每一个区域，对于每一个区域，将其与其连接的目标区域存储
+        // from_area:起点为字符串(区域名称) to_areas:与其相连的所有终点，字符串数组
         for (const auto &[from_area, to_areas] : project_map)
         {
             activated_fibers_[from_area].insert(to_areas.begin(), to_areas.end());
@@ -443,10 +444,12 @@ public:
     // 激活特定区域中的特定单词
     // parser.activateWord("LEX", "hello");
     void activateWord(const std::string& area_name, const std::string& word) {
+        //          区域列表 区域名->区域列表索引  区域名列表
         auto& area = areas_.at(area_by_name_.at(area_name));
         uint32_t k = area.k;
-        uint32_t lexeme_index = lexeme_dict_.at(word);
+        uint32_t lexeme_index = lexeme_dict_[word].index; // 获取索引，我对其获取方式进行了修改，不会影响函数实现
         uint32_t assembly_start = lexeme_index * k;
+        // 在子区间中复制元素，并赋值给另一个容器的特定范围
         area.activated.assign(area.activated.begin() + assembly_start, area.activated.begin() + assembly_start + k);
         area.is_fixed = true;
     }
@@ -454,6 +457,7 @@ public:
     // parser.activateIndex("area_name", 0);
     void activateIndex(const std::string &area_name, uint32_t index)
     {
+        //          区域列表 区域名->区域列表索引  区域名列表
         auto &area = areas_.at(area_by_name_.at(area_name));
         uint32_t k = area.k;
         uint32_t assembly_start = index * k;
@@ -473,27 +477,36 @@ public:
     // std::string word = parser.getWord("LEX", 0.7);
     std::string getWord(const std::string &area_name, float min_overlap = 0.7) const
     {
+        // 获取与指定区域名称关联的区域对象
         const auto &area = areas_.at(area_by_name_.at(area_name));
+        // 将区域中激活的神经元ID存入集合 winners
         std::set<uint32_t> winners(area.activated.begin(), area.activated.end());
+        // 获取区域中的神经元数量 k
         uint32_t area_k = area.k;
+        // 计算重叠阈值
         float threshold = min_overlap * area_k;
 
-        for (const auto &[word, lexeme_index] : lexeme_dict_)
+        for (const auto &[word, lexeme_] : lexeme_dict_)
         {
-            uint32_t word_assembly_start = lexeme_index * area_k;
+            // 计算词素在区域中的起始索引
+            uint32_t word_assembly_start = lexeme_.index * area_k; // 在这里获取索引，算法实现不会被影响
+            // 构建该词素对应的神经元集合
             std::set<uint32_t> word_assembly;
             for (uint32_t i = word_assembly_start; i < word_assembly_start + area_k; ++i)
             {
                 word_assembly.insert(i);
             }
+            // 计算 winners 与 word_assembly 的交集
             std::set<uint32_t> intersection;
             std::set_intersection(winners.begin(), winners.end(), word_assembly.begin(), word_assembly.end(),
-                                  std::inserter(intersection, intersection.begin()));
+                                std::inserter(intersection, intersection.begin()));
+            // 如果交集大小大于等于阈值，则返回对应的单词
             if (intersection.size() >= threshold)
             {
                 return word;
             }
         }
+        // 如果没有找到符合条件的单词，返回空字符串
         return "";
     }
     // 获取已激活的纤维束
