@@ -1,16 +1,3 @@
-#ifndef PARSER_BRAIN_H_
-#define PARSER_BRAIN_H_
-
-#include <iostream>
-#include <map>
-#include <set>
-#include <vector>
-#include <string>
-#include <random>
-#include <algorithm>
-#include "true_brain.h"
-#include "brain.h"
-
 /*
   先看这里！
   每个函数我都用两行注释来展示
@@ -29,8 +16,282 @@
   祝你们顺利~
 */
 
+#ifndef PARSER_BRAIN_H_
+#define PARSER_BRAIN_H_
+
+#include <iostream>
+#include <map>
+#include <set>
+#include <vector>
+#include <string>
+#include <random>
+#include <algorithm>
+#include "true_brain.h"
+#include "brain.h"
+
 namespace nemo
 {
+
+// 脑区
+const std::string LEX = "LEX";
+const std::string DET = "DET";
+const std::string SUBJ = "SUBJ";
+const std::string OBJ = "OBJ";
+const std::string VERB = "VERB";
+const std::string PREP = "PREP";
+const std::string PREP_P = "PREP_P";
+const std::string ADJ = "ADJ";
+const std::string ADVERB = "ADVERB";
+
+// 确定 LEX 区域的基础大小，进一步计算确定这个区域的总神经元数量
+const int LEX_SIZE = 20;
+
+// 行为
+const std::string DISINHIBIT = "DISINHIBIT";
+const std::string INHIBIT = "INHIBIT";
+const std::string ACTIVATE_ONLY = "ACTIVATE_ONLY";
+const std::string CLEAR_DET = "CLEAR_DET";
+
+// 区域划分
+const std::vector<std::string> AREAS = {LEX, DET, SUBJ, OBJ, VERB, ADJ, ADVERB, PREP, PREP_P};
+const std::vector<std::string> EXPLICIT_AREAS = {LEX};
+const std::vector<std::string> RECURRENT_AREAS = {SUBJ, OBJ, VERB, ADJ, ADVERB, PREP, PREP_P};
+
+// 数据结构
+struct AreaRule {
+    std::string action;
+    std::string area;
+    int index;
+    AreaRule(std::string a, std::string b, int i) 
+    : action(a), area(b), index(i) {}
+};
+
+struct FiberRule {
+    std::string action;
+    std::string area1;
+    std::string area2;
+    int index;
+
+    FiberRule(std::string a, std::string a1, std::string a2, int i) 
+        : action(a), area1(a1), area2(a2), index(i) {}
+};
+
+struct FiringRule {
+    std::string action;
+};
+
+struct OtherRule {
+    std::string action;
+};
+
+
+// 封装的规则组
+struct RuleGroup {
+    std::vector<AreaRule> areaRules; // 存储对单一区域的操作
+    std::vector<FiberRule> fiberRules; // 存储对区域间的操作
+    
+    RuleGroup(std::vector<AreaRule> areas, std::vector<FiberRule> fibers) 
+        : areaRules(areas), fiberRules(fibers) {}
+};
+
+// 封装好的规则类
+struct RuleSet {
+    int index; // 索引
+    std::map<std::string, RuleGroup> ruleGroups; // 只会有"PRE_RULES"和"POST_RULES"
+    
+    RuleSet(int i, RuleGroup pre_rules, RuleGroup post_rules) {
+        // emplace() 直接构造一个新的RuleGroup对象, 而不是调用默认构造函数
+        index = i;
+        ruleGroups.emplace("PRE_RULES", pre_rules);
+        ruleGroups.emplace("POST_RULES", post_rules);
+    }
+};
+
+
+// 创建通用名词的函数
+RuleSet generic_noun(int index) {
+    std::vector<AreaRule> preareaRules{
+
+    };
+    std::vector<FiberRule> prefiberRules{
+        {"DISINHIBIT", LEX, SUBJ, 0}, {"DISINHIBIT", LEX, OBJ, 0}, {"DISINHIBIT", LEX, PREP_P, 0},
+        {"DISINHIBIT", DET, SUBJ, 0}, {"DISINHIBIT", DET, OBJ, 0}, {"DISINHIBIT", DET, PREP_P, 0},
+        {"DISINHIBIT", ADJ, SUBJ, 0}, {"DISINHIBIT", ADJ, OBJ, 0}, {"DISINHIBIT", ADJ, PREP_P, 0},
+        {"DISINHIBIT", VERB, OBJ, 0}, {"DISINHIBIT", PREP_P, PREP, 0}, {"DISINHIBIT", PREP_P, SUBJ, 0},
+        {"DISINHIBIT", PREP_P, OBJ, 0}
+    };
+    std::vector<AreaRule> postareaRules{
+        {"INHIBIT", DET, 0}, {"INHIBIT", ADJ, 0}, {"INHIBIT", PREP_P, 0}, {"INHIBIT", PREP, 0}
+    };
+    std::vector<FiberRule> postfiberRules{
+        {"INHIBIT", LEX, SUBJ, 0}, {"INHIBIT", LEX, OBJ, 0}, {"INHIBIT", LEX, PREP_P, 0},
+        {"INHIBIT", ADJ, SUBJ, 0}, {"INHIBIT", ADJ, OBJ, 0}, {"INHIBIT", ADJ, PREP_P, 0},
+        {"INHIBIT", DET, SUBJ, 0}, {"INHIBIT", DET, OBJ, 0}, {"INHIBIT", DET, PREP_P, 0},
+        {"INHIBIT", VERB, OBJ, 0}, {"INHIBIT", PREP_P, PREP, 0}, {"INHIBIT", PREP_P, VERB, 0},
+        {"DISINHIBIT", LEX, SUBJ, 1}, {"DISINHIBIT", LEX, OBJ, 1}, {"DISINHIBIT", DET, SUBJ, 1},
+        {"DISINHIBIT", DET, OBJ, 1}, {"DISINHIBIT", ADJ, SUBJ, 1}, {"DISINHIBIT", ADJ, OBJ, 1},
+        {"INHIBIT", PREP_P, SUBJ, 0}, {"INHIBIT", PREP_P, OBJ, 0}, {"INHIBIT", VERB, ADJ, 0}
+    };
+    return RuleSet(index, RuleGroup(preareaRules, prefiberRules), RuleGroup(postareaRules, postfiberRules));
+}
+
+// 创建通用及物动词的规则集
+RuleSet generic_trans_verb(int index) {
+    std::vector<AreaRule> preareaRules{
+        {"DISINHIBIT", ADVERB, 1}
+    };
+    std::vector<FiberRule> prefiberRules{
+        {"DISINHIBIT", LEX, VERB, 0}, {"DISINHIBIT", VERB, SUBJ, 0}, {"DISINHIBIT", VERB, ADVERB, 0}
+    };
+    std::vector<AreaRule> postareaRules{
+        {"DISINHIBIT", OBJ, 0}, {"INHIBIT", SUBJ, 0}, {"INHIBIT", ADVERB, 0}
+    };
+    std::vector<FiberRule> postfiberRules{
+        {"INHIBIT", LEX, VERB, 0}, {"DISINHIBIT", PREP_P, VERB, 0}
+    };
+    return RuleSet(index, RuleGroup(preareaRules, prefiberRules), RuleGroup(postareaRules, postfiberRules));
+}
+
+
+// 创建通用不及物动词的规则集
+RuleSet generic_intrans_verb(int index) {
+    std::vector<AreaRule> preareaRules{
+        {"DISINHIBIT", ADVERB, 1}
+    };
+    std::vector<FiberRule> prefiberRules{
+        {"DISINHIBIT", LEX, VERB, 0}, {"DISINHIBIT", VERB, SUBJ, 0}, {"DISINHIBIT", VERB, ADVERB, 0}
+    };
+    std::vector<AreaRule> postareaRules{
+        {"INHIBIT", SUBJ, 0}, {"INHIBIT", ADVERB, 0}
+    };
+    std::vector<FiberRule> postfiberRules{
+        {"INHIBIT", LEX, VERB, 0}, {"DISINHIBIT", PREP_P, VERB, 0}
+    };
+    return RuleSet(index, RuleGroup(preareaRules, prefiberRules), RuleGroup(postareaRules, postfiberRules));
+}
+
+// 创建通用系动词的规则集
+RuleSet generic_copula(int index) {
+    std::vector<AreaRule> preareaRules{
+
+    };
+    std::vector<FiberRule> prefiberRules{
+        {"DISINHIBIT", VERB, SUBJ, 0}, {"DISINHIBIT", LEX, VERB, 0}
+    };
+    std::vector<AreaRule> postareaRules{
+        {"DISINHIBIT", OBJ, 0}, {"INHIBIT", SUBJ, 0}
+    };
+    std::vector<FiberRule> postfiberRules{
+        {"INHIBIT", LEX, VERB, 0}, {"DISINHIBIT", ADJ, VERB, 0}
+    };
+    return RuleSet(index, RuleGroup(preareaRules, prefiberRules), RuleGroup(postareaRules, postfiberRules));
+}
+
+// 创建通用副词的规则集
+RuleSet generic_adverb(int index) {
+    std::vector<AreaRule> preareaRules{
+        {"DISINHIBIT", ADVERB, 0}, 
+    };
+    std::vector<FiberRule> prefiberRules{
+        {"DISINHIBIT", LEX, ADVERB, 0}
+    };
+    std::vector<AreaRule> postareaRules{
+        {"INHIBIT", ADVERB, 1}
+    };
+    std::vector<FiberRule> postfiberRules{
+        {"INHIBIT", LEX, ADVERB, 0}
+    };
+    return RuleSet(index, RuleGroup(preareaRules, prefiberRules), RuleGroup(postareaRules, postfiberRules));
+}
+
+// 创建通用限定词的规则集
+RuleSet generic_determinant(int index) {
+    std::vector<AreaRule> preareaRules{
+        {"DISINHIBIT", DET, 0}
+    };
+    std::vector<FiberRule> prefiberRules{
+        {"DISINHIBIT", LEX, DET, 0}
+    };
+    std::vector<AreaRule> postareaRules{
+        
+    };
+    std::vector<FiberRule> postfiberRules{
+        {"INHIBIT", LEX, DET, 0}, {"INHIBIT", VERB, ADJ, 0}
+    };
+    return RuleSet(index, RuleGroup(preareaRules, prefiberRules), RuleGroup(postareaRules, postfiberRules));
+}
+
+// 创建通用形容词的规则集
+RuleSet generic_adjective(int index) {
+    std::vector<AreaRule> preareaRules{
+        {"DISINHIBIT", ADJ, 0}
+    };
+    std::vector<FiberRule> prefiberRules{
+        {"DISINHIBIT", LEX, ADJ, 0}
+    };
+    std::vector<AreaRule> postareaRules{
+        
+    };
+    std::vector<FiberRule> postfiberRules{
+        {"INHIBIT", LEX, ADJ, 0}, {"INHIBIT", VERB, ADJ, 0}
+    };
+    return RuleSet(index, RuleGroup(preareaRules, prefiberRules), RuleGroup(postareaRules, postfiberRules));
+}
+
+// 创建通用介词的规则集
+RuleSet generic_preposition(int index) {
+    std::vector<AreaRule> preareaRules{
+        {"DISINHIBIT", PREP, 0}
+    };
+    std::vector<FiberRule> prefiberRules{
+        {"DISINHIBIT", LEX, PREP, 0}
+    };
+    std::vector<AreaRule> postareaRules{
+        {"DISINHIBIT", PREP_P, 0}
+    };
+    std::vector<FiberRule> postfiberRules{
+        {"INHIBIT", LEX, PREP, 0}, {"INHIBIT", LEX, SUBJ, 1},
+        {"INHIBIT", LEX, OBJ, 1}, {"INHIBIT", DET, SUBJ, 1},
+        {"INHIBIT", DET, OBJ, 1}, {"INHIBIT", ADJ, SUBJ, 1},
+        {"INHIBIT", ADJ, OBJ, 1}
+    };
+    return RuleSet(index, RuleGroup(preareaRules, prefiberRules), RuleGroup(postareaRules, postfiberRules));
+}
+
+std::vector<std::pair<std::string, RuleSet(*)(int)>> LEXEME_DICT = {
+    {"the", generic_determinant},
+    {"a", generic_determinant},
+    {"dogs", generic_noun},
+    {"cats", generic_noun},
+    {"mice", generic_noun},
+    {"people", generic_noun},
+    {"chase", generic_trans_verb},
+    {"love", generic_trans_verb},
+    {"bite", generic_trans_verb},
+    {"of", generic_preposition},
+    {"big", generic_adjective},
+    {"bad", generic_adjective},
+    {"run", generic_intrans_verb},
+    {"fly", generic_intrans_verb},
+    {"quickly", generic_adverb},
+    {"in", generic_preposition},
+    {"are", generic_copula},
+    {"man", generic_noun},
+    {"woman", generic_noun},
+    {"saw", generic_trans_verb}
+};
+
+std::vector<std::vector<const std::string>> ENGLISH_READOUT_RULES = {
+    {LEX, SUBJ, OBJ, PREP_P, ADVERB, ADJ},
+    {LEX, DET, ADJ, PREP_P},
+    {LEX, DET, ADJ, PREP_P},
+    {LEX, PREP, ADJ, DET},
+    {LEX},
+    {LEX},
+    {LEX},
+    {LEX},
+    {LEX}
+};
 
 typedef std::map<std::string, std::vector<std::string>> ProjectMap;
 
