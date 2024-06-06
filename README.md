@@ -42,3 +42,10 @@ set(CMAKE_C_STANDARD 11)
 最后就可以在终端中运行该文件，这里的代码是在输出C++版本号
 
 ![alt text](image/image.png)
+
+
+### 测试复现
+
+1. 先使用CMake进行编译项目
+2. 生成 test
+3. 在终端运行即可`~/AssemblyCalculus$` `build/src/test`

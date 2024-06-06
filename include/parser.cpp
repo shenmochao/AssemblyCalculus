@@ -981,6 +981,5 @@ void parse(std::string sentence = "cats chase mice", float p = 0.1, int LEX_k = 
 
     parseHelper(b, sentence,  project_rounds, verbose, debug, 
 		lexeme_dict, all_areas, explicit_areas, readout_method, readout_rules);}
-
 }
 #endif
