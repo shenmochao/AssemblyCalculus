@@ -384,6 +384,13 @@ public:
         }
     }
     // 解析投射
+    // parser.parseProject(1, true); // 训练时置为true
+    // void parseProject(uint32_t step, bool update_plasticity)
+    // {
+    //     auto project_map = getProjectMap();
+    //     rememberFibers(project_map);
+    //     Project(project_map, step, update_plasticity);
+    // }
     // parser.parseProject();
     void parseProject()
     {

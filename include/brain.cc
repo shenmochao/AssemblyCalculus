@@ -16,6 +16,8 @@
 #include <utility>
 #include <vector>
 
+typedef std::map<std::string, std::set<std::string>> ProjectMap;
+
 namespace nemo {
 namespace {
 
@@ -228,7 +230,7 @@ void Brain::ActivateArea(const std::string& name, uint32_t assembly_index) {
 // 模拟一个时间步
 void Brain::SimulateOneStep(bool update_plasticity) {
   if (log_level_ > 0) {
-    if (step_ == 0 && log_level_ > 2) {
+    if (step_ == 0 && log_level_ < 2) {
       LogGraphStats();
     }
     printf("Step %u%s\n", step_, update_plasticity ? "" : " (readout)");
@@ -324,7 +326,7 @@ void Brain::InitProjection(const ProjectMap& graph) {
   }
 }
 
-// 投影
+// 投影(ProjectMap, num_steps, 是否更新可塑性)
 void Brain::Project(const ProjectMap& graph, uint32_t num_steps,
                     bool update_plasticity) {
   InitProjection(graph);
@@ -536,7 +538,7 @@ void Brain::LogActivated(const std::string& area_name) {
 
 // 记录图的统计信息
 void Brain::LogGraphStats() {
-  printf("Graph Stats after %u update steps\n", step_);
+  //printf("Graph Stats after %u update steps\n", step_);
   for (const auto& area : areas_) {
     if (area.support == 0) continue;
     printf("Area %d [%s] has %d neurons\n",
@@ -548,6 +550,7 @@ void Brain::LogGraphStats() {
       printf("\n");
     }
   }
+  printf("\n");
   const float kThresLow = std::pow(learn_rate_, 10);
   for (const Fiber& fiber : fibers_) {
     if (fiber.outgoing_synapses.empty()) continue;

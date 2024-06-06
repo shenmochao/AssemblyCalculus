@@ -2,7 +2,8 @@
 #define NEMO_BRAIN_H_
 
 #include <stdint.h>
-
+#include <stdio.h>
+#include <iostream>
 #include <map>
 #include <random>
 #include <string>
@@ -17,7 +18,6 @@ struct Synapse {
 
 struct Area {
   Area(uint32_t index, uint32_t n, uint32_t k) : index(index), n(n), k(k) {}
-
   const uint32_t index; // 区域的标识符
   const uint32_t n; // 区域中神经元的数量
   const uint32_t k; // 区域中激活神经元的数量
@@ -35,7 +35,20 @@ struct Fiber {
   std::vector<std::vector<Synapse>> outgoing_synapses;
 };
 
-typedef std::map<std::string, std::vector<std::string>> ProjectMap;
+typedef std::map<std::string, std::set<std::string>> ProjectMap;
+
+void printProjectMap(const ProjectMap& projects) {
+    for (const auto& pair : projects) {
+        std::cout << "Project: " << pair.first << std::endl;
+        if (pair.second.empty()) {
+            std::cout << "  No values found" << std::endl;
+        } else {
+            for (const auto& value : pair.second) {
+                std::cout << "  " << value << std::endl;
+            }
+        }
+    }
+}
 
 class Brain {
  public:
@@ -86,13 +99,13 @@ class Brain {
                         const std::vector<uint32_t>& new_activated);
 
  protected:
-  std::mt19937 rng_; // 随机数生成器
-  int log_level_ = 0; // 日志等级
+  std::mt19937 rng_;
+  int log_level_ = -1;
 
-  const float p_; // 某种参数（可能与概率或权重相关）
-  const float beta_; // 某种参数（可能与学习率或调整系数相关）
-  const float learn_rate_; // 学习率
-  const float max_weight_; // 最大权重
+  const float p_;
+  const float beta_;
+  const float learn_rate_;
+  const float max_weight_;
   std::vector<Area> areas_; // 区域列表
   std::vector<Fiber> fibers_; // 纤维列表
   std::vector<std::vector<uint32_t>> incoming_fibers_; // 入纤维列表
